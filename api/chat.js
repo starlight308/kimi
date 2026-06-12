@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const response = await fetch('https://api.coze.cn/v3/chat', {
+        const response = await fetch('https://api.coze.cn/open_api/v2/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -17,29 +17,39 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
                 bot_id: process.env.COZE_BOT_ID,
-                user_id: 'user_' + Date.now(),
-                additional_messages: [
-                    {
-                        role: 'user',
-                        content: message,
-                        content_type: 'text'
-                    }
-                ]
+                user: 'user_' + Date.now(),
+                query: message,
+                stream: false
             })
         });
 
-        const data = await response.json();
+        const text = await response.text();
+        console.log('Raw response:', text);
         
-        // 返回完整数据用于调试
-        return res.status(200).json({ 
-            reply: data.data?.messages?.find(m => m.type === 'answer')?.content || null,
-            debug: JSON.stringify(data).substring(0, 800)
-        });
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            return res.status(200).json({ reply: '解析错误: ' + text.substring(0, 100) });
+        }
+        
+        console.log('Parsed data:', data);
+
+        if (data.messages && data.messages.length > 0) {
+            const answer = data.messages.find(m => m.type === 'answer');
+            if (answer) {
+                return res.status(200).json({ reply: answer.content });
+            }
+        }
+        
+        if (data.code !== undefined && data.code !== 0) {
+            return res.status(200).json({ reply: 'API错误: ' + (data.msg || data.message || JSON.stringify(data)) });
+        }
+        
+        return res.status(200).json({ reply: '收到你的消息：' + message + ' (调试: ' + JSON.stringify(data).substring(0, 50) + ')' });
 
     } catch (error) {
-        return res.status(200).json({ 
-            reply: null,
-            debug: 'Error: ' + error.message
-        });
+        console.error('Error:', error);
+        return res.status(500).json({ error: error.message });
     }
 }
