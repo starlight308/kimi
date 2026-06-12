@@ -9,6 +9,27 @@ export default async function handler(req, res) {
     }
 
     try {
+        // 第一步：创建会话
+        const conversationRes = await fetch('https://api.coze.cn/v3/conversation/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.COZE_TOKEN}`
+            },
+            body: JSON.stringify({
+                bot_id: process.env.COZE_BOT_ID,
+                user_id: 'user_' + Date.now()
+            })
+        });
+
+        const convData = await conversationRes.json();
+        const conversationId = convData.data?.conversation_id;
+
+        if (!conversationId) {
+            throw new Error('Failed to create conversation');
+        }
+
+        // 第二步：发送消息
         const response = await fetch('https://api.coze.cn/v3/chat', {
             method: 'POST',
             headers: {
@@ -17,6 +38,7 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
                 bot_id: process.env.COZE_BOT_ID,
+                conversation_id: conversationId,
                 user_id: 'user_' + Date.now(),
                 additional_messages: [
                     {
@@ -30,7 +52,7 @@ export default async function handler(req, res) {
 
         const data = await response.json();
         
-        // Coze v3 返回格式
+        // 处理返回
         if (data.data && data.data.messages) {
             const answer = data.data.messages.find(m => m.type === 'answer');
             if (answer) {
