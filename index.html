@@ -182,10 +182,13 @@
                 const data = await res.json();
                 document.getElementById('loading').remove();
                 
+                // 修改后的逻辑：显示调试信息
                 if (data.reply) {
                     addMessage(data.reply, 'bot');
+                } else if (data.debug) {
+                    addMessage('调试: ' + data.debug, 'bot');
                 } else {
-                    addMessage('抱歉，暂时无法回复', 'bot');
+                    addMessage('无法回复: ' + JSON.stringify(data).substring(0, 200), 'bot');
                 }
             } catch (e) {
                 document.getElementById('loading').remove();
@@ -197,4 +200,4 @@
         }
     </script>
 </body>
-</html> 
+</html>
